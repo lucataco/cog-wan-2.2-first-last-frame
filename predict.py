@@ -60,14 +60,14 @@ class Predictor(BasePredictor):
             MODEL_ID,
             transformer=WanTransformer3DModel.from_pretrained(
                 MODEL_ID, 
-                subfolder='transformer', 
-                torch_dtype=self.dtype, 
+                subfolder='transformer',
+                torch_dtype=self.dtype,
                 device_map='cuda' if torch.cuda.is_available() else 'cpu',
             ),
             transformer_2=WanTransformer3DModel.from_pretrained(
                 MODEL_ID, 
-                subfolder='transformer_2', 
-                torch_dtype=self.dtype, 
+                subfolder='transformer_2',
+                torch_dtype=self.dtype,
                 device_map='cuda' if torch.cuda.is_available() else 'cpu',
             ),
             torch_dtype=self.dtype,
@@ -137,13 +137,14 @@ class Predictor(BasePredictor):
     def predict(
         self,
         start_image: Path = Input(description="Start frame image (RGB)"),
-        end_image: Optional[Path] = Input(description="Optional end frame image (RGB)"),
+        end_image: Path = Input(description="Optional end frame image (RGB)"),
         prompt: str = Input(description="Prompt describing the transition between the two images", default="animate"),
         negative_prompt: str = Input(description="Negative prompt", default="色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走,过曝，"),
         duration_seconds: float = Input(description="Video duration in seconds (16 fps)", default=5.0, ge=0.5, le=10.0),
         num_inference_steps: int = Input(description="Inference steps", default=8, ge=1, le=30),
-        guidance_scale: float = Input(description="Guidance scale - high noise", default=1.0, ge=0.0, le=10.0),
-        guidance_scale_2: float = Input(description="Guidance scale - low noise", default=1.0, ge=0.0, le=10.0),
+        guidance_scale: float = Input(description="Guidance scale - high noise", default=3.0, ge=0.0, le=10.0),
+        guidance_scale_2: float = Input(description="Guidance scale - low noise", default=3.0, ge=0.0, le=10.0),
+        shift: float = Input(description="Shift", default=8.0, ge=1.0, le=10.0),
         seed: int = Input(description="Random seed if <= 0", default=0),
     ) -> Path:
         """Run a single prediction to generate a video from start (and optional end) frames."""
@@ -166,6 +167,11 @@ class Predictor(BasePredictor):
 
         # Frames based on duration and fps, clamped to model limits
         num_frames = self._duration_to_frames(duration_seconds)
+
+        # Scheduler per Space config
+        self.pipe.scheduler = FlowMatchEulerDiscreteScheduler.from_config(
+            self.pipe.scheduler.config, shift=shift
+        )
 
         # Prepare pipeline kwargs - standard image-to-video call
         pipe_kwargs = dict(
@@ -197,5 +203,10 @@ class Predictor(BasePredictor):
         out_dir = tempfile.mkdtemp()
         out_path = os.path.join(out_dir, "output.mp4")
         export_to_video(frames, out_path, fps=self.fixed_fps)
+
+        # Clear cache between runs
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         return Path(out_path)

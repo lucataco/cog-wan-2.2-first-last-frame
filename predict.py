@@ -157,7 +157,7 @@ class Predictor(BasePredictor):
         ),
         duration_seconds: float = Input(
             description="Video duration in seconds",
-            default=2.063,
+            default=5.0,
             ge=0.5,
             le=10.0
         ),

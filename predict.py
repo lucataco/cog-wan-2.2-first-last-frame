@@ -5,9 +5,7 @@ import time
 import torch
 import tempfile
 import subprocess
-import numpy as np
 from PIL import Image
-
 from cog import BasePredictor, Input, Path
 from diffusers import FlowMatchEulerDiscreteScheduler
 from diffusers.pipelines.wan.pipeline_wan_i2v import WanImageToVideoPipeline
@@ -42,7 +40,7 @@ class Predictor(BasePredictor):
         
         # Download and load weights if needed
         if not os.path.exists(MODEL_ID):
-            download_weights(MODEL_URL, ".")
+            download_weights(MODEL_URL, MODEL_ID)
             
         # Load pipeline components exactly as HF Space does
         self.pipe = WanImageToVideoPipeline.from_pretrained(
@@ -54,14 +52,14 @@ class Predictor(BasePredictor):
         print("Loading/fusing Lightning LoRA adapters...")
         self.pipe.load_lora_weights(
             "Kijai/WanVideo_comfy", 
-            weight_name="Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank128_bf16.safetensors", 
+            weight_name="Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank128_bf16.safetensors",
             adapter_name="lightx2v"
         )
         kwargs_lora = {"load_into_transformer_2": True}
         self.pipe.load_lora_weights(
             "Kijai/WanVideo_comfy", 
-            weight_name="Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank128_bf16.safetensors", 
-            adapter_name="lightx2v_2", 
+            weight_name="Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank128_bf16.safetensors",
+            adapter_name="lightx2v_2",
             **kwargs_lora
         )
         
@@ -150,7 +148,7 @@ class Predictor(BasePredictor):
         start_image: Path = Input(description="Start frame image"),
         end_image: Path = Input(description="End frame image"),
         prompt: str = Input(
-            description="Prompt describing the transition between images", 
+            description="Prompt describing the transition between images",
             default="animate"
         ),
         negative_prompt: str = Input(
@@ -158,33 +156,33 @@ class Predictor(BasePredictor):
             default="色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走,过曝，"
         ),
         duration_seconds: float = Input(
-            description="Video duration in seconds", 
-            default=2.063, 
-            ge=0.5, 
+            description="Video duration in seconds",
+            default=2.063,
+            ge=0.5,
             le=10.0
         ),
         num_inference_steps: int = Input(
-            description="Number of inference steps", 
-            default=8, 
-            ge=1, 
+            description="Number of inference steps",
+            default=8,
+            ge=1,
             le=30
         ),
         guidance_scale: float = Input(
-            description="Guidance scale for high noise", 
-            default=1.0, 
-            ge=0.0, 
+            description="Guidance scale for high noise",
+            default=1.0,
+            ge=0.0,
             le=10.0
         ),
         guidance_scale_2: float = Input(
-            description="Guidance scale for low noise", 
-            default=1.0, 
-            ge=0.0, 
+            description="Guidance scale for low noise",
+            default=1.0,
+            ge=0.0,
             le=10.0
         ),
         shift: float = Input(
-            description="Scheduler shift parameter", 
-            default=8.0, 
-            ge=1.0, 
+            description="Scheduler shift parameter",
+            default=8.0,
+            ge=1.0,
             le=10.0
         ),
         seed: Optional[int] = Input(
@@ -207,7 +205,6 @@ class Predictor(BasePredictor):
         start_img = Image.open(start_image).convert("RGB")
         end_img = Image.open(end_image).convert("RGB")
         
-        # CRITICAL: Process start image first to establish target dimensions
         # This prevents ghosting artifacts by ensuring perfect frame alignment
         processed_start = self.process_image_for_video(start_img)
         processed_end = self.resize_and_crop_to_match(end_img, processed_start)

@@ -1,0 +1,14 @@
+torch==2.8.0
+torchvision
+git+https://github.com/linoytsaban/diffusers.git@wan22-loras
+transformers==4.56.0
+accelerate==1.10.1
+opencv-python==4.12.0.88
+numpy==2.2.6
+Pillow==11.3.0
+scipy==1.16.1
+imageio
+imageio-ffmpeg==0.6.0
+einops==0.8.1
+ftfy==6.3.1
+torchao==0.11.0
